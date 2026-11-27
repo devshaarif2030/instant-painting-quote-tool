@@ -6,7 +6,7 @@ An instant interior painting quote tool for contractors. The homeowner answers a
 
 > **Demo rates.** The company (Northfield Painting) is fictional and the prices are demo rates built from public industry averages. They are not a real contractor's prices. Sources are listed below.
 
-**Live demo:** coming soon
+**Live demo:** [painting-instant-quote-xi.vercel.app](https://painting-instant-quote-xi.vercel.app)
 
 ## The problem
 
