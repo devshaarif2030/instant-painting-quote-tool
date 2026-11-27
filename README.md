@@ -22,8 +22,12 @@ Pro estimating software uses a better method (production rates), but it lives in
 4. **Adds materials and local pricing:** paint by coverage plus waste, trim paint, sundries, patching, materials markup, then a regional factor by state from the ZIP code.
 5. **Shows a range, not a fake exact number:** -10% / +15% around the estimate, with "final price confirmed at a free site visit", the same pattern the big roofing quote tools use.
 6. **Contact gate:** the range is shown first. Name and email unlock the full line-item and room-by-room breakdown.
+7. **PDF quote:** quote number, price range, line items, rooms, selections, valid 30 days. Download on screen and attached to the email.
+8. **Lead to Google Sheets:** one row per quote with contact, ZIP, rooms, range, hours, crew, days, timeline and a hot / warm / cold score.
+9. **Emails:** the homeowner gets the PDF, the contractor gets a new-lead alert.
+10. **Follow-up:** day 2 "any questions?" and day 5 "book your site visit", stops when the homeowner replies or the status is changed.
 
-Coming next: lead saved to Google Sheets, branded PDF quote by email, automatic follow-up.
+![PDF quote](docs/05-pdf.png)
 
 ![Steps](docs/01-rooms.png)
 
@@ -66,10 +70,27 @@ Sources:
 - [Angi: How much does it cost to paint a room](https://www.angi.com/articles/how-much-does-it-cost-paint-bedroom.htm)
 - [BLS: Painters, construction and maintenance](https://www.bls.gov/ooh/construction-and-extraction/painters-construction-and-maintenance.htm)
 
+## How the lead flow works
+
+```
+Quiz (browser)
+  -> POST /api/lead          validates input, recalculates the price on the server,
+                             builds the PDF, scores the lead
+  -> Google Apps Script      appends a row to the "Quotes" sheet,
+                             emails the PDF to the homeowner, alerts the contractor
+  -> hourly trigger          day 2 and day 5 follow-ups, checks Gmail for replies
+```
+
+The price is always recalculated on the server, so nobody can send a fake total. The API has a honeypot field and a basic rate limit. If `APPS_SCRIPT_URL` is not set, the quote and PDF still work, the lead is just not stored.
+
+Why Apps Script and not n8n: the live demo has to run 24/7 for free with no server to babysit. Apps Script runs inside Google, writes to the Sheet and sends from Gmail with no API keys to manage.
+
 ## Stack
 
 - Next.js 16 (App Router), React 19, TypeScript
 - Tailwind CSS 4
+- pdf-lib for the PDF quote, Zod for input validation
+- Google Apps Script + Google Sheets + Gmail for leads, emails and follow-ups
 - Vitest for the pricing engine tests
 - Vercel for hosting
 
@@ -83,7 +104,15 @@ npm run dev      # http://localhost:3000
 npm test         # pricing engine tests
 ```
 
-No API keys are needed for the quote itself.
+No API keys are needed for the quote and PDF. To save leads and send emails:
+
+1. Create a Google Sheet, open **Extensions > Apps Script** and paste [`apps-script/Code.gs`](apps-script/Code.gs).
+2. In **Project Settings > Script Properties** add `LEAD_SECRET` (a long random string) and `OWNER_EMAIL`.
+3. Run `setup()` once and accept the permissions. It creates the "Quotes" sheet and the hourly follow-up trigger.
+4. **Deploy > New deployment > Web app**, execute as you, access "Anyone". Copy the `/exec` URL.
+5. Copy `.env.example` to `.env.local` and set `APPS_SCRIPT_URL` and the same `LEAD_SECRET`. On Vercel, add both as environment variables.
+
+Emails to `@example.com` addresses are logged but never sent, so you can test safely.
 
 ## Project structure
 
@@ -92,7 +121,12 @@ src/lib/quote/rates.ts        demo rate sheet with sources
 src/lib/quote/engine.ts       pricing engine (hours, crew, days, materials, range)
 src/lib/quote/zip.ts          US ZIP to state, for the regional factor
 src/lib/quote/engine.test.ts  tests, including the worked examples above
+src/lib/quote/pdf.ts          PDF quote
+src/lib/quote/schema.ts       input validation, quote ID, lead score
+src/app/api/lead/route.ts     lead endpoint (server-side price, PDF, forward to Apps Script)
+src/app/api/quote/pdf/route.ts  PDF download
 src/components/QuoteWizard.tsx  quiz and result screen
+apps-script/Code.gs           Sheet row, emails, follow-ups
 ```
 
 ## Mobile

@@ -6,6 +6,7 @@ import type { CeilingHeight, ColourChange, Condition, PaintTier } from "@/lib/qu
 import { zipToState } from "@/lib/quote/zip";
 
 type Timeline = "asap" | "2weeks" | "month" | "planning";
+type Lead = { quoteId: string; name: string; saved: boolean; emailed: boolean };
 type Room = RoomInput & { id: number; size: "S" | "M" | "L" | "custom" };
 
 const ROOM_TYPES: Array<{ value: RoomType; label: string; sizes: Record<"S" | "M" | "L", [number, number]> }> = [
@@ -48,7 +49,7 @@ export default function QuoteWizard() {
   const [paintTier, setPaintTier] = useState<PaintTier | null>(null);
   const [furnished, setFurnished] = useState<boolean | null>(null);
   const [timeline, setTimeline] = useState<Timeline | null>(null);
-  const [unlocked, setUnlocked] = useState(false);
+  const [lead, setLead] = useState<Lead | null>(null);
 
   const zipValid = zipToState(zip) !== null;
   const roomsValid = rooms.every(
@@ -86,7 +87,7 @@ export default function QuoteWizard() {
     setPaintTier(null);
     setFurnished(null);
     setTimeline(null);
-    setUnlocked(false);
+    setLead(null);
   };
 
   const progress = Math.round((step / (STEPS.length - 1)) * 100);
@@ -306,7 +307,7 @@ export default function QuoteWizard() {
         )}
 
         {step === 8 && quote && (
-          <Result quote={quote} unlocked={unlocked} onUnlock={() => setUnlocked(true)} onBack={back} onRestart={restart} />
+          <Result quote={quote} input={input!} timeline={timeline ?? "planning"} lead={lead} onLead={setLead} onBack={back} onRestart={restart} />
         )}
         {step === 8 && !quote && (
           <div>
@@ -573,22 +574,71 @@ function NumberField({ label, value, onChange }: { label: string; value: number;
 
 function Result({
   quote,
-  unlocked,
-  onUnlock,
+  input,
+  timeline,
+  lead,
+  onLead,
   onBack,
   onRestart,
 }: {
   quote: QuoteResult;
-  unlocked: boolean;
-  onUnlock: () => void;
+  input: QuoteInput;
+  timeline: Timeline;
+  lead: Lead | null;
+  onLead: (l: Lead) => void;
   onBack: () => void;
   onRestart: () => void;
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [company, setCompany] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const canSubmit = name.trim().length > 1 && emailOk;
+  const canSubmit = name.trim().length > 1 && emailOk && !sending;
+  const unlocked = lead !== null;
+
+  const submit = async () => {
+    setSending(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input, timeline, contact: { name, email, phone }, company }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body?.error ?? "Something went wrong.");
+      onLead({ quoteId: body.quoteId, name: name.trim(), saved: body.saved, emailed: Boolean(body.emailed) });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const downloadPdf = async () => {
+    if (!lead) return;
+    setDownloading(true);
+    try {
+      const res = await fetch("/api/quote/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input, quoteId: lead.quoteId, name: lead.name }),
+      });
+      if (!res.ok) throw new Error();
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${lead.quoteId}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div>
@@ -613,7 +663,7 @@ function Result({
           className="mt-8 rounded-xl border border-black/10 bg-accent-50/50 p-5"
           onSubmit={(e) => {
             e.preventDefault();
-            if (canSubmit) onUnlock();
+            if (canSubmit) void submit();
           }}
         >
           <p className="font-semibold">See the full breakdown</p>
@@ -623,16 +673,41 @@ function Result({
             <Field label="Email" value={email} onChange={setEmail} type="email" autoComplete="email" />
             <Field label="Phone (optional)" value={phone} onChange={setPhone} type="tel" autoComplete="tel" />
           </div>
+          <input
+            type="text"
+            name="company"
+            tabIndex={-1}
+            autoComplete="off"
+            aria-hidden
+            value={company}
+            onChange={(e) => setCompany(e.target.value)}
+            className="absolute -left-[9999px] h-0 w-0 opacity-0"
+          />
+          {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
           <button
             type="submit"
             disabled={!canSubmit}
             className="mt-4 rounded-lg bg-accent-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-accent-700 disabled:opacity-40"
           >
-            Show breakdown
+            {sending ? "Preparing your quote..." : "Show breakdown"}
           </button>
         </form>
       ) : (
         <div className="mt-8 space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-black/10 px-4 py-3 text-sm">
+            <p className="text-black/70">
+              Quote <span className="font-semibold text-black">{lead.quoteId}</span>
+              {lead.emailed ? " · A copy is on its way to your inbox." : ""}
+            </p>
+            <button
+              type="button"
+              onClick={downloadPdf}
+              disabled={downloading}
+              className="rounded-lg border border-black/15 px-4 py-2 font-medium hover:bg-black/5 disabled:opacity-50"
+            >
+              {downloading ? "Preparing PDF..." : "Download PDF"}
+            </button>
+          </div>
           <div>
             <p className="mb-2 font-semibold">Price breakdown</p>
             <table className="w-full text-sm">
@@ -679,6 +754,14 @@ function Result({
                       <td className="py-2 text-right tabular-nums">{hrs(r.hours)}</td>
                     </tr>
                   ))}
+                  <tr className="border-t border-black/5 text-black/50">
+                    <td className="py-2" colSpan={4}>
+                      Setup and clean-up
+                    </td>
+                    <td className="py-2 text-right tabular-nums">
+                      {hrs(quote.hours - quote.rooms.reduce((t, r) => t + r.hours, 0))}
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
