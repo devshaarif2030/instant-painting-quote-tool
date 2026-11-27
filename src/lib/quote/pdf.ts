@@ -26,7 +26,7 @@ export async function buildQuotePdf(input: QuoteInput, q: QuoteResult, meta: Pdf
   const doc = await PDFDocument.create();
   doc.setTitle(`Painting quote ${meta.quoteId}`);
   doc.setAuthor("Northfield Painting (demo)");
-  doc.setCreator("painting-instant-quote by devshaarif.com");
+  doc.setCreator("instant-painting-quote-tool by devshaarif.com");
 
   let page = doc.addPage([612, 792]); // US Letter
   const reg = await doc.embedFont(StandardFonts.Helvetica);
