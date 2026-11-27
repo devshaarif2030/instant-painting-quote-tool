@@ -24,8 +24,8 @@ Pro estimating software uses a better method (production rates), but it lives in
 6. **Contact gate:** the range is shown first. Name and email unlock the full line-item and room-by-room breakdown.
 7. **PDF quote:** quote number, price range, line items, rooms, selections, valid 30 days. Download on screen and attached to the email.
 8. **Lead to Google Sheets:** one row per quote with contact, ZIP, rooms, range, hours, crew, days, timeline and a hot / warm / cold score.
-9. **Emails:** the homeowner gets the PDF, the contractor gets a new-lead alert.
-10. **Follow-up:** day 2 "any questions?" and day 5 "book your site visit", stops when the homeowner replies or the status is changed.
+9. **Emails:** the homeowner gets the PDF from the contractor's own domain (SMTP), the contractor gets a new-lead alert.
+10. **Follow-up (optional):** day 2 "any questions?" and day 5 "book your site visit", stops when the homeowner replies or the status is changed. Off in the public demo so visitors never get repeat emails.
 
 ![PDF quote](docs/05-pdf.png)
 
@@ -75,10 +75,10 @@ Sources:
 ```
 Quiz (browser)
   -> POST /api/lead          validates input, recalculates the price on the server,
-                             builds the PDF, scores the lead
-  -> Google Apps Script      appends a row to the "Quotes" sheet,
-                             emails the PDF to the homeowner, alerts the contractor
-  -> hourly trigger          day 2 and day 5 follow-ups, checks Gmail for replies
+                             builds the PDF, scores the lead,
+                             emails the PDF to the homeowner over SMTP (own domain)
+  -> Google Apps Script      appends a row to the "Quotes" sheet, alerts the contractor
+  -> hourly trigger          optional day 2 and day 5 follow-ups, checks Gmail for replies
 ```
 
 The price is always recalculated on the server, so nobody can send a fake total. The API has a honeypot field and a basic rate limit. If `APPS_SCRIPT_URL` is not set, the quote and PDF still work, the lead is just not stored.
@@ -89,7 +89,7 @@ Why Apps Script and not n8n: the live demo has to run 24/7 for free with no serv
 
 - Next.js 16 (App Router), React 19, TypeScript
 - Tailwind CSS 4
-- pdf-lib for the PDF quote, Zod for input validation
+- pdf-lib for the PDF quote, Zod for input validation, Nodemailer for SMTP
 - Google Apps Script + Google Sheets + Gmail for leads, emails and follow-ups
 - Vitest for the pricing engine tests
 - Vercel for hosting
@@ -111,6 +111,8 @@ No API keys are needed for the quote and PDF. To save leads and send emails:
 3. Run `setup()` once and accept the permissions. It creates the "Quotes" sheet and the hourly follow-up trigger.
 4. **Deploy > New deployment > Web app**, execute as you, access "Anyone". Copy the `/exec` URL.
 5. Copy `.env.example` to `.env.local` and set `APPS_SCRIPT_URL` and the same `LEAD_SECRET`. On Vercel, add both as environment variables.
+6. Optional, recommended: set the `SMTP_*` variables so the homeowner email comes from your own domain instead of the Gmail account that runs the script. Without them, Apps Script sends it from Gmail.
+7. Optional: set the Script Property `FOLLOWUPS` to `on` to send the day 2 and day 5 follow-ups.
 
 Emails to `@example.com` addresses are logged but never sent, so you can test safely.
 
@@ -123,6 +125,7 @@ src/lib/quote/zip.ts          US ZIP to state, for the regional factor
 src/lib/quote/engine.test.ts  tests, including the worked examples above
 src/lib/quote/pdf.ts          PDF quote
 src/lib/quote/schema.ts       input validation, quote ID, lead score
+src/lib/quote/mailer.ts       homeowner quote email over SMTP
 src/app/api/lead/route.ts     lead endpoint (server-side price, PDF, forward to Apps Script)
 src/app/api/quote/pdf/route.ts  PDF download
 src/components/QuoteWizard.tsx  quiz and result screen

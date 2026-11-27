@@ -1,5 +1,6 @@
 import { calculateQuote, roundDisplay } from "@/lib/quote/engine";
 import { buildQuotePdf } from "@/lib/quote/pdf";
+import { isDemoAddress, sendQuoteEmail, smtpConfigured } from "@/lib/quote/mailer";
 import { leadSchema, leadScore, newQuoteId, TIMELINE_LABEL } from "@/lib/quote/schema";
 
 // Best-effort per-instance rate limit: 5 leads per IP per 10 minutes.
@@ -32,9 +33,31 @@ export async function POST(req: Request) {
   const quote = calculateQuote(input);
   const url = process.env.APPS_SCRIPT_URL;
   const secret = process.env.LEAD_SECRET;
-  if (!url || !secret) return Response.json({ ok: true, quoteId, saved: false });
-
   const pdf = await buildQuotePdf(input, quote, { quoteId, name: contact.name });
+
+  // Homeowner email goes from your own domain over SMTP when configured.
+  let emailed = false;
+  if (smtpConfigured() && !isDemoAddress(contact.email)) {
+    try {
+      await sendQuoteEmail({
+        to: contact.email,
+        name: contact.name,
+        quoteId,
+        low: roundDisplay(quote.low),
+        high: roundDisplay(quote.high),
+        rooms: input.rooms.length,
+        hours: Math.round(quote.hours * 10) / 10,
+        crew: quote.crew,
+        days: quote.days,
+        pdf,
+      });
+      emailed = true;
+    } catch (err) {
+      console.error("quote email failed", err);
+    }
+  }
+
+  if (!url || !secret) return Response.json({ ok: true, quoteId, saved: false, emailed });
   const payload = {
     secret,
     quoteId,
@@ -55,6 +78,9 @@ export async function POST(req: Request) {
     timeline: TIMELINE_LABEL[timeline],
     score: leadScore(timeline, quote.total),
     pdfBase64: Buffer.from(pdf).toString("base64"),
+    // When SMTP is set up, the app emails the homeowner and Apps Script must not.
+    homeownerHandled: smtpConfigured(),
+    homeownerEmailed: emailed,
   };
 
   try {
@@ -67,10 +93,10 @@ export async function POST(req: Request) {
     });
     const body = (await res.json().catch(() => null)) as { ok?: boolean; emailed?: boolean } | null;
     if (!res.ok || !body?.ok) throw new Error(`Apps Script responded ${res.status}`);
-    return Response.json({ ok: true, quoteId, saved: true, emailed: Boolean(body.emailed) });
+    return Response.json({ ok: true, quoteId, saved: true, emailed: emailed || Boolean(body.emailed) });
   } catch (err) {
     console.error("lead forward failed", err);
     // The homeowner still gets their breakdown; the lead is just not stored.
-    return Response.json({ ok: true, quoteId, saved: false });
+    return Response.json({ ok: true, quoteId, saved: false, emailed });
   }
 }

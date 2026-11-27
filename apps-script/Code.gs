@@ -13,6 +13,8 @@
  *       LEAD_SECRET   a long random string (same value as LEAD_SECRET in Vercel)
  *       OWNER_EMAIL   where new-lead alerts go
  *       COMPANY_NAME  optional, defaults to "Northfield Painting"
+ *       FOLLOWUPS     optional, set to "on" to send day 2 / day 5 follow-ups (off by default,
+ *                     so a public demo never sends repeat emails to strangers)
  *  3. Run setup() once and accept the permissions. It creates the sheet and the trigger.
  *  4. Deploy > New deployment > Web app. Execute as: Me. Who has access: Anyone.
  *     Copy the /exec URL into APPS_SCRIPT_URL in Vercel.
@@ -74,8 +76,9 @@ function doPost(e) {
     lock.releaseLock();
 
     var pdf = Utilities.newBlob(Utilities.base64Decode(d.pdfBase64), "application/pdf", d.quoteId + ".pdf");
-    var emailed = false;
-    if (!isDemoAddress_(d.email)) {
+    var emailed = Boolean(d.homeownerEmailed);
+    // If the app sends the homeowner email itself (SMTP on your domain), skip it here.
+    if (!d.homeownerHandled && !isDemoAddress_(d.email)) {
       GmailApp.sendEmail(d.email, "Your painting quote " + d.quoteId + " from " + company_(), quoteText_(d), {
         htmlBody: quoteHtml_(d),
         attachments: [pdf],
@@ -95,7 +98,7 @@ function doPost(e) {
           "Range: " + money_(d.low) + " to " + money_(d.high) + " (estimate " + money_(d.total) + ")",
           "Labour: " + d.hours + " hrs, " + d.crew + " painter(s), " + d.days + " day(s)",
           "Timeline: " + d.timeline, "Score: " + d.score,
-          "", "Homeowner emailed: " + (emailed ? "yes" : "no (demo address)")
+          "", "Homeowner emailed: " + (emailed ? "yes" : "no")
         ].join("\n"),
         { attachments: [pdf], name: "Quote tool" }
       );
@@ -120,7 +123,10 @@ function quoteText_(d) {
     "The full breakdown is attached as a PDF (quote " + d.quoteId + ", valid 30 days).",
     "The final price is confirmed at a free site visit. Just reply to this email to book one.",
     "",
-    company_()
+    company_(),
+    "",
+    "--",
+    "This is a demo quote tool built by devshaarif.com. " + company_() + " is a fictional company and the prices are demo rates."
   ].join("\n");
 }
 
@@ -132,10 +138,14 @@ function quoteHtml_(d) {
     '<p style="color:#71717a;margin-top:0">About ' + d.hours + " labour hours, " + d.crew + " painter(s), " + d.days + " day(s) on site.</p>" +
     "<p>The full breakdown is attached as a PDF (quote <b>" + esc_(d.quoteId) + "</b>, valid 30 days).</p>" +
     "<p>The final price is confirmed at a free site visit. Just reply to this email to book one.</p>" +
-    "<p>" + esc_(company_()) + "</p></div>";
+    "<p>" + esc_(company_()) + "</p>" +
+    '<hr style="border:none;border-top:1px solid #e4e4e7;margin:24px 0 12px">' +
+    '<p style="font-size:12px;color:#71717a">This is a demo quote tool built by devshaarif.com. ' +
+    esc_(company_()) + " is a fictional company and the prices are demo rates.</p></div>";
 }
 
 function followUps() {
+  if (props_().getProperty("FOLLOWUPS") !== "on") return;
   var sh = sheet_();
   var rows = sh.getDataRange().getValues();
   var now = new Date();
