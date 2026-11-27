@@ -1,4 +1,4 @@
-# Painting Instant Quote
+# Instant Painting Quote Tool
 
 An instant interior painting quote tool for contractors. The homeowner answers a short quiz and gets a realistic price range in about a minute, priced the way painters actually estimate: surface area, crew production rates, labour hours, paint by coverage and local labour costs.
 
@@ -97,8 +97,8 @@ Why Apps Script and not n8n: the live demo has to run 24/7 for free with no serv
 ## Run it locally
 
 ```bash
-git clone https://github.com/devshaarif2030/painting-instant-quote.git
-cd painting-instant-quote
+git clone https://github.com/devshaarif2030/instant-painting-quote-tool.git
+cd instant-painting-quote-tool
 npm install
 npm run dev      # http://localhost:3000
 npm test         # pricing engine tests
