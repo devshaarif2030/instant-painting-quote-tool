@@ -94,7 +94,7 @@ export default function QuoteWizard() {
 
   return (
     <div className="overflow-hidden rounded-[28px] border border-black/[0.06] bg-white p-2 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-24px_rgba(0,0,0,0.18)]">
-      <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)_400px]">
+      <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)_440px]">
         <nav aria-label="Quote steps" className="hidden border-r border-black/[0.06] px-6 py-8 lg:block">
           <ol className="relative">
             {STEPS.map((label, i) => {
@@ -147,7 +147,7 @@ export default function QuoteWizard() {
           </ol>
         </nav>
 
-        <section className="min-w-0 px-5 py-7 sm:px-10 sm:py-10">
+        <section className="min-w-0 px-5 py-7 sm:px-12 sm:py-10">
           <div className="mb-8 lg:hidden">
             <div className="mb-2 flex items-center justify-between text-xs font-medium text-zinc-500">
               <span>
@@ -159,6 +159,7 @@ export default function QuoteWizard() {
             </div>
           </div>
 
+        <div key={step}>
         {step === 0 && (
           <StepShell title="Where is the property?" hint="Your ZIP code sets local labour and material pricing.">
             <form
@@ -315,6 +316,7 @@ export default function QuoteWizard() {
             <NavButtons onBack={back} />
           </div>
         )}
+        </div>
         </section>
 
         <VisualPanel
@@ -337,9 +339,15 @@ export default function QuoteWizard() {
 function StepShell({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
     <div>
-      <h2 className="text-xl font-semibold sm:text-2xl">{title}</h2>
-      {hint && <p className="mt-1 text-sm text-black/55">{hint}</p>}
-      <div className="mt-6">{children}</div>
+      <h2 className="anim-fade-up text-xl font-semibold sm:text-2xl">{title}</h2>
+      {hint && (
+        <p style={{ "--d": "60ms" } as React.CSSProperties} className="anim-fade-up mt-1 text-sm text-black/55">
+          {hint}
+        </p>
+      )}
+      <div style={{ "--d": "120ms" } as React.CSSProperties} className="anim-fade-up mt-6">
+        {children}
+      </div>
     </div>
   );
 }
@@ -389,7 +397,7 @@ function Options<T extends string>({
 }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      {options.map((o) => {
+      {options.map((o, i) => {
         const active = value === o.value;
         return (
           <button
@@ -397,7 +405,8 @@ function Options<T extends string>({
             type="button"
             onClick={() => onPick(o.value)}
             aria-pressed={active}
-            className={`rounded-xl border-2 p-4 text-left transition ${
+            style={{ "--d": `${140 + i * 60}ms` } as React.CSSProperties}
+            className={`anim-fade-up rounded-xl border-2 p-4 text-left transition duration-200 hover:-translate-y-0.5 active:scale-[0.99] ${
               active ? "border-accent-500 bg-accent-50" : "border-black/10 hover:border-black/25"
             }`}
           >
@@ -642,8 +651,8 @@ function Result({
 
   return (
     <div>
-      <p className="text-sm font-medium text-accent-600">Your instant estimate</p>
-      <p className="mt-1 text-4xl font-semibold tracking-tight sm:text-5xl">
+      <p className="anim-fade-up text-sm font-medium text-accent-600">Your instant estimate</p>
+      <p style={{ "--d": "80ms" } as React.CSSProperties} className="anim-fade-up mt-1 text-4xl font-semibold tracking-tight sm:text-5xl">
         {money(quote.low)} <span className="text-black/30">to</span> {money(quote.high)}
       </p>
       <p className="mt-2 text-sm text-black/55">
@@ -652,15 +661,16 @@ function Result({
       </p>
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat k="Labour" v={`${hrs(quote.hours)} hrs`} />
-        <Stat k="Crew" v={`${quote.crew} painter${quote.crew > 1 ? "s" : ""}`} />
-        <Stat k="On site" v={`${quote.days} day${quote.days > 1 ? "s" : ""}`} />
-        <Stat k="Paint" v={`${quote.paintGallons + quote.primerGallons} gal`} />
+        <Stat i={0} k="Labour" v={`${hrs(quote.hours)} hrs`} />
+        <Stat i={1} k="Crew" v={`${quote.crew} painter${quote.crew > 1 ? "s" : ""}`} />
+        <Stat i={2} k="On site" v={`${quote.days} day${quote.days > 1 ? "s" : ""}`} />
+        <Stat i={3} k="Paint" v={`${quote.paintGallons + quote.primerGallons} gal`} />
       </div>
 
       {!unlocked ? (
         <form
-          className="mt-8 rounded-xl border border-black/10 bg-accent-50/50 p-5"
+          style={{ "--d": "460ms" } as React.CSSProperties}
+          className="anim-fade-up mt-8 rounded-xl border border-black/10 bg-accent-50/50 p-5"
           onSubmit={(e) => {
             e.preventDefault();
             if (canSubmit) void submit();
@@ -693,7 +703,7 @@ function Result({
           </button>
         </form>
       ) : (
-        <div className="mt-8 space-y-6">
+        <div className="anim-fade-up mt-8 space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-black/10 px-4 py-3 text-sm">
             <p className="text-black/70">
               Quote <span className="font-semibold text-black">{lead.quoteId}</span>
@@ -803,9 +813,9 @@ function Result({
   );
 }
 
-function Stat({ k, v }: { k: string; v: string }) {
+function Stat({ k, v, i = 0 }: { k: string; v: string; i?: number }) {
   return (
-    <div className="rounded-xl border border-black/5 bg-black/[0.02] p-3">
+    <div style={{ "--d": `${180 + i * 70}ms` } as React.CSSProperties} className="anim-fade-up rounded-xl border border-black/5 bg-black/[0.02] p-3">
       <p className="text-xs text-black/45">{k}</p>
       <p className="mt-0.5 font-semibold">{v}</p>
     </div>
@@ -873,11 +883,18 @@ function VisualPanel({
       <div aria-hidden className="absolute -left-20 top-1/3 h-72 w-72 rounded-full bg-[#2F3A4F] opacity-60 blur-3xl" />
 
       <div aria-hidden className="absolute inset-x-0 top-0 h-[64%]">
-        {SWATCHES.map((s) => (
+        {SWATCHES.map((s, i) => (
           <div
             key={s.code}
-            className="absolute left-1/2 top-[13%] flex h-[250px] w-[88px] flex-col rounded-[10px] bg-white p-1.5 shadow-[0_18px_40px_-10px_rgba(0,0,0,0.7)]"
-            style={{ transform: `translateX(-50%) rotate(${s.r}deg)`, transformOrigin: "50% 125%" }}
+            className="anim-fan absolute left-1/2 top-[13%] flex h-[250px] w-[88px] flex-col rounded-[10px] bg-white p-1.5 shadow-[0_18px_40px_-10px_rgba(0,0,0,0.7)]"
+            style={
+              {
+                transform: `translateX(-50%) rotate(${s.r}deg)`,
+                transformOrigin: "50% 125%",
+                "--r": `${s.r}deg`,
+                "--d": `${300 + i * 90}ms`,
+              } as React.CSSProperties
+            }
           >
             <div className="flex-1 rounded-md" style={{ background: s.hex }} />
             <div className="px-0.5 pb-0.5 pt-2">
@@ -890,10 +907,10 @@ function VisualPanel({
 
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/85 to-transparent px-7 pb-7 pt-24 text-white">
         {estimate ? (
-          <>
+          <div key={estimate} className="anim-fade-up">
             <p className="text-xs uppercase tracking-[0.14em] text-white/50">Your estimate</p>
             <p className="mt-1 text-3xl font-semibold tracking-tight">{estimate}</p>
-          </>
+          </div>
         ) : (
           <>
             <p className="text-xs uppercase tracking-[0.14em] text-white/50">Priced the way pros do</p>

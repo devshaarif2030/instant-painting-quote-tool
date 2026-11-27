@@ -60,7 +60,7 @@ export async function sendQuoteEmail(q: QuoteEmail) {
 <p>The full breakdown is attached as a PDF (quote <b>${esc(q.quoteId)}</b>, valid 30 days).</p>
 <p>${esc(company)}</p>
 <hr style="border:none;border-top:1px solid #e4e4e7;margin:24px 0 12px">
-<p style="font-size:12px;color:#71717a">${esc(demo)} <a href="https://devshaarif.com" style="color:#71717a">devshaarif.com</a></p>
+<p style="font-size:12px;color:#71717a">This is a demo quote tool built by <a href="https://devshaarif.com" style="color:#71717a">devshaarif.com</a>. Northfield Painting is a fictional company and the prices are demo rates.</p>
 </div>`;
 
   await transport.sendMail({
