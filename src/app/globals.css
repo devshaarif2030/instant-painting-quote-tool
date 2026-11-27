@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-inter);
+  --color-accent-50: #f4f4f5;
+  --color-accent-100: #e4e4e7;
+  --color-accent-500: #18181b;
+  --color-accent-600: #18181b;
+  --color-accent-700: #000000;
+  --color-ink: #18181b;
+}
+
+html { color-scheme: light; }
+body { background: #efefef; color: var(--color-ink); }
